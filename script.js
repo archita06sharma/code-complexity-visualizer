@@ -4,29 +4,44 @@ function analyzeCode() {
 
     let maxDepth = 0;
     let currentDepth = 0;
-    let pendingLoop = false; // for loops without {}
+    let pendingLoop = false;
+
+    let validLoopCount = 0;
+    let invalidLines = 0;
+
+    // Regex for valid loops
+    const forRegex = /^for\s*\(.*\)/;
+    const whileRegex = /^while\s*\(.*\)/;
 
     for (let i = 0; i < lines.length; i++) {
         let line = lines[i].trim();
 
-        // Detect loop
-        if (line.startsWith("for") || line.startsWith("while")) {
-            // Check if it has {
+        if (line === "") continue;
+
+        let isFor = forRegex.test(line);
+        let isWhile = whileRegex.test(line);
+
+        if (isFor || isWhile) {
+            validLoopCount++;
+
             if (line.includes("{")) {
                 currentDepth++;
                 maxDepth = Math.max(maxDepth, currentDepth);
             } else {
-                // no { → then next line is body
                 pendingLoop = true;
                 currentDepth++;
                 maxDepth = Math.max(maxDepth, currentDepth);
             }
         }
+        else if (line.startsWith("for") || line.startsWith("while")) {
+            // Looks like loop but invalid
+            invalidLines++;
+        }
 
-        // Handling pending loop (single-line body)
+        // Handle one-line loop body
         else if (pendingLoop) {
             pendingLoop = false;
-            currentDepth--; 
+            currentDepth--;
         }
 
         // Handle block closing
@@ -35,6 +50,14 @@ function analyzeCode() {
         }
     }
 
+    // VALIDATION CHECK
+    if (validLoopCount === 0 || invalidLines > validLoopCount) {
+        document.getElementById("complexity").innerText = "Invalid Code";
+        document.getElementById("reason").innerText = "Unsupported or incorrect syntax";
+        return;
+    }
+
+    // FINAL OUTPUT
     let complexity = "";
     let reason = "";
 
