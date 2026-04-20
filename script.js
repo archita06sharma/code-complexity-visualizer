@@ -1,22 +1,35 @@
 function analyzeCode() {
     const code = document.getElementById("codeInput").value;
-
-    // Normalize code (remove extra spaces)
     const lines = code.split('\n');
 
     let maxDepth = 0;
     let currentDepth = 0;
+    let pendingLoop = false; // for loops without {}
 
-    for (let line of lines) {
-        line = line.trim();
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
 
         // Detect loop
         if (line.startsWith("for") || line.startsWith("while")) {
-            currentDepth++;
-            maxDepth = Math.max(maxDepth, currentDepth);
+            // Check if it has {
+            if (line.includes("{")) {
+                currentDepth++;
+                maxDepth = Math.max(maxDepth, currentDepth);
+            } else {
+                // no { → then next line is body
+                pendingLoop = true;
+                currentDepth++;
+                maxDepth = Math.max(maxDepth, currentDepth);
+            }
         }
 
-        // Detect block closing
+        // Handling pending loop (single-line body)
+        else if (pendingLoop) {
+            pendingLoop = false;
+            currentDepth--; 
+        }
+
+        // Handle block closing
         if (line.includes("}")) {
             if (currentDepth > 0) currentDepth--;
         }
@@ -30,7 +43,7 @@ function analyzeCode() {
         reason = "No loops detected";
     } else if (maxDepth === 1) {
         complexity = "O(n)";
-        reason = "1 loop detected";
+        reason = "Single loop or sequential loops";
     } else {
         complexity = `O(n^${maxDepth})`;
         reason = `${maxDepth} nested loops detected`;
