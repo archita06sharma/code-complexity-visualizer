@@ -9,6 +9,8 @@ function analyzeCode() {
     let validLoopCount = 0;
     let invalidLines = 0;
 
+    let hasLogPattern = false;
+
     // Regex for valid loops
     const forRegex = /^for\s*\(.*\)/;
     const whileRegex = /^while\s*\(.*\)/;
@@ -20,6 +22,10 @@ function analyzeCode() {
 
         let isFor = forRegex.test(line);
         let isWhile = whileRegex.test(line);
+
+        if(line.include("/=") || line includes("/ 2")){
+            hasLogPattern = true;
+        }
 
         if (isFor || isWhile) {
             validLoopCount++;
@@ -61,13 +67,23 @@ function analyzeCode() {
     let complexity = "";
     let reason = "";
 
-    if (maxDepth === 0) {
+    if (hasLogPattern && maxDepth === 0) {
+        complexity = "O(log n)";
+        reason = "Logarithmic reduction detected";
+    }
+    else if (hasLogPattern && maxDepth > 0) {
+        complexity = `O(n^${maxDepth} log n)`;
+        reason = "Loop with logarithmic inner operation";
+    }
+    else if (maxDepth === 0) {
         complexity = "O(1)";
         reason = "No loops detected";
-    } else if (maxDepth === 1) {
+    }
+    else if (maxDepth === 1) {
         complexity = "O(n)";
-        reason = "Single loop or sequential loops";
-    } else {
+        reason = "Single loop detected";
+    }
+    else {
         complexity = `O(n^${maxDepth})`;
         reason = `${maxDepth} nested loops detected`;
     }
