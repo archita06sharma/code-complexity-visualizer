@@ -2,91 +2,74 @@ function analyzeCode() {
     const code = document.getElementById("codeInput").value;
     const lines = code.split('\n');
 
-    let maxDepth = 0;
-    let currentDepth = 0;
-    let pendingLoop = false;
+    let linearCount = 0;
+    let logCount = 0;
 
-    let validLoopCount = 0;
-    let invalidLines = 0;
+    const forRegex = /^for\s*\((.*)\)/;
+    const whileRegex = /^while\s*\((.*)\)/;
 
-    let hasLogPattern = false;
+    let validLoop = false;
 
-    // Regex for valid loops
-    const forRegex = /^for\s*\(.*\)/;
-    const whileRegex = /^while\s*\(.*\)/;
-
-    for (let i = 0; i < lines.length; i++) {
-        let line = lines[i].trim();
-
+    for (let line of lines) {
+        line = line.trim();
         if (line === "") continue;
 
-        let isFor = forRegex.test(line);
-        let isWhile = whileRegex.test(line);
+        let forMatch = line.match(forRegex);
+        let whileMatch = line.match(whileRegex);
 
-        if(line.include("/=") || line includes("/ 2")){
-            hasLogPattern = true;
-        }
+        // FOR LOOP ANALYSIS
+        if (forMatch) {
+            validLoop = true;
 
-        if (isFor || isWhile) {
-            validLoopCount++;
+            let inside = forMatch[1]; // content inside ()
+            let parts = inside.split(";");
 
-            if (line.includes("{")) {
-                currentDepth++;
-                maxDepth = Math.max(maxDepth, currentDepth);
-            } else {
-                pendingLoop = true;
-                currentDepth++;
-                maxDepth = Math.max(maxDepth, currentDepth);
+            if (parts.length === 3) {
+                let update = parts[2];
+
+                if (update.includes("++") || update.includes("+=")) {
+                    linearCount++;
+                }
+                else if (update.includes("*=") || update.includes("/=")) {
+                    logCount++;
+                }
             }
         }
-        else if (line.startsWith("for") || line.startsWith("while")) {
-            // Looks like loop but invalid
-            invalidLines++;
-        }
 
-        // Handle one-line loop body
-        else if (pendingLoop) {
-            pendingLoop = false;
-            currentDepth--;
-        }
+        // WHILE LOOP ANALYSIS (basic)
+        else if (whileMatch) {
+            validLoop = true;
 
-        // Handle block closing
-        if (line.includes("}")) {
-            if (currentDepth > 0) currentDepth--;
+            // crude detection
+            if (line.includes("/=") || line.includes("*=")) {
+                logCount++;
+            } else {
+                linearCount++;
+            }
         }
     }
 
-    // VALIDATION CHECK
-    if (validLoopCount === 0 || invalidLines > validLoopCount) {
+    if (!validLoop) {
         document.getElementById("complexity").innerText = "Invalid Code";
-        document.getElementById("reason").innerText = "Unsupported or incorrect syntax";
+        document.getElementById("reason").innerText = "No valid loops detected";
         return;
     }
 
-    // FINAL OUTPUT
-    let complexity = "";
-    let reason = "";
+    // BUILD COMPLEXITY STRING
+    let complexity = "O(";
 
-    if (hasLogPattern && maxDepth === 0) {
-        complexity = "O(log n)";
-        reason = "Logarithmic reduction detected";
+    if (linearCount > 0) {
+        complexity += linearCount === 1 ? "n" : `n^${linearCount}`;
     }
-    else if (hasLogPattern && maxDepth > 0) {
-        complexity = `O(n^${maxDepth} log n)`;
-        reason = "Loop with logarithmic inner operation";
+
+    if (logCount > 0) {
+        if (linearCount > 0) complexity += " ";
+        complexity += logCount === 1 ? "log n" : `(log n)^${logCount}`;
     }
-    else if (maxDepth === 0) {
-        complexity = "O(1)";
-        reason = "No loops detected";
-    }
-    else if (maxDepth === 1) {
-        complexity = "O(n)";
-        reason = "Single loop detected";
-    }
-    else {
-        complexity = `O(n^${maxDepth})`;
-        reason = `${maxDepth} nested loops detected`;
-    }
+
+    complexity += ")";
+
+    let reason = `${linearCount} linear loop(s), ${logCount} logarithmic loop(s)`;
 
     document.getElementById("complexity").innerText = complexity;
     document.getElementById("reason").innerText = reason;
